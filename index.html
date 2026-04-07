@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tesseract Puzzle — 2⁴ Rubik's</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&family=Unbounded:wght@300;400;700;900&display=swap');
+
+:root {
+  --bg: #050508;
+  --surface: #0d0d14;
+  --surface2: #13131e;
+  --border: rgba(255,255,255,0.06);
+  --border2: rgba(255,255,255,0.12);
+  --text: #ddd8f0;
+  --muted: #5a566e;
+  --muted2: #8a87a0;
+  --accent: #ff6b35;
+  --accent2: #00e5cc;
+  --accent3: #a855f7;
+  --glow-o: rgba(255,107,53,0.3);
+  --glow-c: rgba(0,229,204,0.25);
+
+  /* Cell colors */
+  --c0: #ff4757; --c1: #ff8c42;
+  --c2: #00d2ff; --c3: #f7c948;
+  --c4: #5352ed; --c5: #7bed9f;
+  --c6: #cd84f1; --c7: #f8f8ff;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: default;
+}
+
+/* ── Background ── */
+.bg-grid {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+.bg-glow {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 20%, rgba(168,85,247,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 80% 80%, rgba(0,229,204,0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 50% 50%, rgba(255,107,53,0.03) 0%, transparent 70%);
+}
+
+/* ── Layout ── */
+.shell {
+  position: relative; z-index: 1;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100vh;
+}
+
+/* ── Header ── */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.2rem 2rem;
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(10px);
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(5,5,8,0.8);
+}
+
+.logo {
+  display: flex; align-items: center; gap: 0.75rem;
+}
+.logo-icon {
+  width: 32px; height: 32px;
+  border: 1.5px solid var(--accent3);
+  border-radius: 6px;
+  display: grid; place-items: center;
+  font-size: 16px;
+}
+.logo-text {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+.logo-dim {
+  font-size: 10px; font-weight: 300;
+  color: var(--muted2);
+  letter-spacing: 0.15em;
+}
+
+.header-stats {
+  display: flex; gap: 1.5rem; align-items: center;
+}
+.hstat {
+  text-align: center;
+}
+.hstat-val {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 18px; font-weight: 700;
+  color: var(--accent2);
+  line-height: 1;
+}
+.hstat-label {
+  font-size: 9px; color: var(--muted);
+  letter-spacing: 0.15em; text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.header-actions {
+  display: flex; gap: 8px; align-items: center;
+}
+
+/* ── Main ── */
+main {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 0;
+  height: calc(100vh - 65px - 48px);
+  min-height: 500px;
+}
+
+/* ── Canvas Area ── */
+.canvas-area {
+  position: relative;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  background: radial-gradient(ellipse 80% 80% at 50% 50%, rgba(13,13,20,1) 0%, var(--bg) 100%);
+}
+
+#mainCanvas {
+  display: block;
+  width: 100%; height: 100%;
+  cursor: grab;
+}
+#mainCanvas:active { cursor: grabbing; }
+
+.canvas-overlay-tl {
+  position: absolute; top: 16px; left: 16px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(13,13,20,0.8);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 10px; letter-spacing: 0.1em;
+  color: var(--muted2);
+  backdrop-filter: blur(8px);
+}
+.tag-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+}
+
+.canvas-overlay-br {
+  position: absolute; bottom: 16px; right: 16px;
+  display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
+}
+
+.hint-pill {
+  background: rgba(13,13,20,0.7);
+  border: 1px solid var(--border);
+  border-radius: 20px; padding: 4px 12px;
+  font-size: 10px; color: var(--muted);
+  letter-spacing: 0.08em;
+  backdrop-filter: blur(8px);
+}
+
+/* Cell slice visualizer */
+.slice-viz {
+  position: absolute; bottom: 16px; left: 16px;
+  background: rgba(13,13,20,0.85);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 12px;
+  backdrop-filter: blur(12px);
+  width: 160px;
+}
+.slice-title {
+  font-size: 9px; letter-spacing: 0.15em;
+  color: var(--muted); text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.slice-grid {
+  display: grid; grid-template-columns: repeat(4,1fr);
+  gap: 3px;
+}
+.slice-cell {
+  height: 18px; border-radius: 3px;
+  border: 1px solid rgba(255,255,255,0.1);
+  transition: opacity 0.3s;
+  font-size: 7px;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(0,0,0,0.6); font-weight: 700;
+}
+
+/* ── Side Panel ── */
+.side-panel {
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+
+.panel-section {
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-label {
+  font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 1rem;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-label::after {
+  content: ''; flex: 1; height: 1px;
+  background: var(--border);
+}
+
+/* Move buttons */
+.moves-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+.move-btn {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; font-weight: 500;
+  padding: 9px 5px 7px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  position: relative; overflow: hidden;
+}
+.move-btn::before {
+  content: ''; position: absolute; inset: 0;
+  background: var(--btn-color, var(--accent3));
+  opacity: 0; transition: opacity 0.15s;
+}
+.move-btn:hover { border-color: rgba(255,255,255,0.15); transform: translateY(-1px); }
+.move-btn:hover::before { opacity: 0.08; }
+.move-btn:active { transform: translateY(0); }
+.move-btn .label { position: relative; z-index: 1; }
+.move-btn .sub {
+  font-size: 8px; color: var(--muted);
+  position: relative; z-index: 1; letter-spacing: 0.05em;
+}
+
+/* Color each move group */
+.move-btn[data-plane="XY"] { --btn-color: #ff6b35; }
+.move-btn[data-plane="XZ"] { --btn-color: #00e5cc; }
+.move-btn[data-plane="XW"] { --btn-color: #a855f7; }
+.move-btn[data-plane="YZ"] { --btn-color: #f7c948; }
+.move-btn[data-plane="YW"] { --btn-color: #5352ed; }
+.move-btn[data-plane="ZW"] { --btn-color: #7bed9f; }
+
+.move-btn[data-plane="XY"]:hover { border-color: #ff6b35; }
+.move-btn[data-plane="XZ"]:hover { border-color: #00e5cc; }
+.move-btn[data-plane="XW"]:hover { border-color: #a855f7; }
+.move-btn[data-plane="YZ"]:hover { border-color: #f7c948; }
+.move-btn[data-plane="YW"]:hover { border-color: #5352ed; }
+.move-btn[data-plane="ZW"]:hover { border-color: #7bed9f; }
+
+/* Kbd shortcuts panel */
+.kbd-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px; font-size: 10px;
+}
+.kbd-keys { display: flex; gap: 4px; }
+kbd {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border2);
+  border-radius: 4px; padding: 2px 6px;
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: var(--accent2);
+}
+.kbd-desc { color: var(--muted2); font-size: 10px; }
+
+/* History */
+.history-scroll {
+  max-height: 68px; overflow-y: auto;
+  font-size: 10px; line-height: 2;
+  color: var(--muted2);
+  word-break: break-all;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+.history-move {
+  display: inline-block;
+  padding: 1px 5px; margin: 1px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  font-size: 9px; letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.history-move:hover { border-color: var(--accent2); color: var(--accent2); }
+.history-move.latest {
+  background: rgba(0,229,204,0.08);
+  border-color: rgba(0,229,204,0.3);
+  color: var(--accent2);
+}
+
+/* Cell color legend */
+.cell-legend {
+  display: grid; grid-template-columns: repeat(2,1fr); gap: 5px;
+}
+.cell-item {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  font-size: 10px;
+  transition: border-color 0.15s;
+}
+.cell-swatch {
+  width: 14px; height: 14px; border-radius: 3px;
+  flex-shrink: 0;
+}
+.cell-name { color: var(--muted2); }
+.cell-status { margin-left: auto; font-size: 8px; }
+.cell-status.ok { color: #7bed9f; }
+.cell-status.bad { color: #ff4757; }
+
+/* Action buttons */
+.btn {
+  border: none; border-radius: 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; font-weight: 500;
+  padding: 10px 14px; cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: all 0.15s;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+.btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.btn-secondary {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border2);
+  color: var(--muted2);
+}
+.btn-secondary:hover { border-color: var(--accent2); color: var(--accent2); }
+.btn-danger {
+  background: rgba(255,71,87,0.08);
+  border: 1px solid rgba(255,71,87,0.2);
+  color: #ff4757;
+}
+.btn-danger:hover { background: rgba(255,71,87,0.15); }
+
+.btn-row {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+
+/* ── Footer ── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 0.6rem 2rem;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 10px; color: var(--muted);
+  letter-spacing: 0.08em;
+}
+.footer-info { display: flex; gap: 1.5rem; }
+
+/* ── Modals ── */
+.modal-backdrop {
+  display: none; position: fixed; inset: 0;
+  background: rgba(5,5,8,0.9);
+  z-index: 200;
+  align-items: center; justify-content: center;
+  backdrop-filter: blur(8px);
+}
+.modal-backdrop.show { display: flex; }
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  padding: 2.5rem;
+  max-width: 480px; width: 90%;
+  text-align: center;
+  position: relative;
+}
+
+/* Win modal */
+.win-icon {
+  font-size: 4rem; margin-bottom: 1rem;
+  display: block;
+  animation: bounceIn 0.5s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes bounceIn {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.win-title {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 2rem; font-weight: 900;
+  background: linear-gradient(135deg, #ffd700, #ff8c42, #ff4757);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 0.5rem;
+}
+.win-stats-row {
+  display: flex; justify-content: center; gap: 2rem;
+  margin: 1.5rem 0;
+}
+.win-stat { text-align: center; }
+.win-stat-val {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 1.5rem; font-weight: 700;
+  color: var(--accent2);
+}
+.win-stat-label {
+  font-size: 10px; color: var(--muted);
+  letter-spacing: 0.15em; text-transform: uppercase;
+}
+
+/* Info modal */
+.info-section { margin-bottom: 1.5rem; text-align: left; }
+.info-title {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 13px; font-weight: 700;
+  color: var(--accent2); margin-bottom: 0.5rem;
+}
+.info-body {
+  font-size: 11px; color: var(--muted2);
+  line-height: 1.8; letter-spacing: 0.02em;
+}
+.info-grid {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 8px; margin-top: 1rem;
+}
+.info-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px;
+  text-align: center;
+}
+.info-card-val {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 14px; font-weight: 700; color: var(--accent);
+}
+.info-card-desc { font-size: 9px; color: var(--muted); margin-top: 3px; }
+
+/* Toast notification */
+.toast {
+  position: fixed; bottom: 60px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 10px; padding: 10px 20px;
+  font-size: 12px; color: var(--text);
+  opacity: 0; pointer-events: none;
+  transition: all 0.3s; z-index: 100;
+  backdrop-filter: blur(10px);
+}
+.toast.show {
+  opacity: 1; transform: translateX(-50%) translateY(0);
+}
+
+/* Scramble flash animation */
+@keyframes flash { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.scrambling { animation: flash 0.15s ease 3; }
+
+/* Responsive */
+@media (max-width: 800px) {
+  main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  .canvas-area { height: 55vw; min-height: 300px; }
+  .side-panel { max-height: 40vh; }
+  header { padding: 0.8rem 1rem; }
+  .header-stats { gap: 0.8rem; }
+  footer { padding: 0.5rem 1rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<div class="shell">
+<header>
+  <div class="logo">
+    <div class="logo-icon">⬡</div>
+    <div>
+      <div class="logo-text">TESSERACT</div>
+      <div class="logo-dim">2⁴ RUBIK'S PUZZLE</div>
+    </div>
+  </div>
+
+  <div class="header-stats">
+    <div class="hstat">
+      <div class="hstat-val" id="moveCount">0</div>
+      <div class="hstat-label">Moves</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-val" id="timer">0:00</div>
+      <div class="hstat-label">Time</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-val" id="solvedCount">8/8</div>
+      <div class="hstat-label">Cells</div>
+    </div>
+  </div>
+
+  <div class="header-actions">
+    <button class="btn btn-secondary" id="infoBtn" title="About this puzzle">?</button>
+    <button class="btn btn-secondary" id="undoBtn" title="Undo (Ctrl+Z)">↩</button>
+    <button class="btn btn-secondary" id="redoBtn" title="Redo (Ctrl+Y)">↪</button>
+    <button class="btn btn-secondary" id="autoRotBtn">⟳ Auto</button>
+    <button class="btn btn-primary" id="scrambleBtn">Scramble</button>
+    <button class="btn btn-danger" id="resetBtn">Reset</button>
+  </div>
+</header>
+
+<main>
+  <div class="canvas-area">
+    <canvas id="mainCanvas"></canvas>
+
+    <div class="canvas-overlay-tl">
+      <div class="tag">
+        <div class="tag-dot" style="background:var(--accent3)"></div>
+        3D PROJECTION OF 4D OBJECT
+      </div>
+      <div class="tag" id="modeTag">
+        <div class="tag-dot" style="background:var(--accent2)"></div>
+        AUTO-ROTATING
+      </div>
+    </div>
+
+    <!-- W-Slice visualizer -->
+    <div class="slice-viz">
+      <div class="slice-title">W-Slice View</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:6px;">W = −1 half</div>
+      <div class="slice-grid" id="sliceNeg"></div>
+      <div style="font-size:9px;color:var(--muted);margin:6px 0 4px;">W = +1 half</div>
+      <div class="slice-grid" id="slicePos"></div>
+    </div>
+
+    <div class="canvas-overlay-br">
+      <div class="hint-pill">Drag to rotate · Scroll to zoom</div>
+      <div class="hint-pill" id="lastMoveTag">No moves yet</div>
+    </div>
+  </div>
+
+  <div class="side-panel">
+    <!-- Move buttons -->
+    <div class="panel-section">
+      <div class="section-label">4D Twist Planes</div>
+      <div class="moves-grid">
+        <button class="move-btn" data-plane="XY" onclick="applyMove('XY',1)">
+          <span class="label">XY +</span><span class="sub">xy-plane</span>
+        </button>
+        <button class="move-btn" data-plane="XY" onclick="applyMove('XY',-1)">
+          <span class="label">XY −</span><span class="sub">xy-plane</span>
+        </button>
+        <button class="move-btn" data-plane="XZ" onclick="applyMove('XZ',1)">
+          <span class="label">XZ +</span><span class="sub">xz-plane</span>
+        </button>
+        <button class="move-btn" data-plane="XZ" onclick="applyMove('XZ',-1)">
+          <span class="label">XZ −</span><span class="sub">xz-plane</span>
+        </button>
+        <button class="move-btn" data-plane="XW" onclick="applyMove('XW',1)">
+          <span class="label">XW +</span><span class="sub">xw-plane ✦</span>
+        </button>
+        <button class="move-btn" data-plane="XW" onclick="applyMove('XW',-1)">
+          <span class="label">XW −</span><span class="sub">xw-plane ✦</span>
+        </button>
+        <button class="move-btn" data-plane="YZ" onclick="applyMove('YZ',1)">
+          <span class="label">YZ +</span><span class="sub">yz-plane</span>
+        </button>
+        <button class="move-btn" data-plane="YZ" onclick="applyMove('YZ',-1)">
+          <span class="label">YZ −</span><span class="sub">yz-plane</span>
+        </button>
+        <button class="move-btn" data-plane="YW" onclick="applyMove('YW',1)">
+          <span class="label">YW +</span><span class="sub">yw-plane ✦</span>
+        </button>
+        <button class="move-btn" data-plane="YW" onclick="applyMove('YW',-1)">
+          <span class="label">YW −</span><span class="sub">yw-plane ✦</span>
+        </button>
+        <button class="move-btn" data-plane="ZW" onclick="applyMove('ZW',1)">
+          <span class="label">ZW +</span><span class="sub">zw-plane ✦</span>
+        </button>
+        <button class="move-btn" data-plane="ZW" onclick="applyMove('ZW',-1)">
+          <span class="label">ZW −</span><span class="sub">zw-plane ✦</span>
+        </button>
+      </div>
+      <div style="font-size:9px;color:var(--muted);margin-top:8px;">✦ = involves W (4th dim)</div>
+    </div>
+
+    <!-- Keyboard shortcuts -->
+    <div class="panel-section">
+      <div class="section-label">Keyboard</div>
+      <div class="kbd-row"><div class="kbd-keys"><kbd>Q</kbd><kbd>W</kbd></div><div class="kbd-desc">XY ± </div></div>
+      <div class="kbd-row"><div class="kbd-keys"><kbd>E</kbd><kbd>R</kbd></div><div class="kbd-desc">XZ ± </div></div>
+      <div class="kbd-row"><div class="kbd-keys"><kbd>A</kbd><kbd>S</kbd></div><div class="kbd-desc">XW ± </div></div>
+      <div class="kbd-row"><div class="kbd-keys"><kbd>D</kbd><kbd>F</kbd></div><div class="kbd-desc">YZ ± </div></div>
+      <div class="kbd-row"><div class="kbd-keys"><kbd>Z</kbd><kbd>X</kbd></div><div class="kbd-desc">YW ± </div></div>
+      <div class="kbd-row"><div class="kbd-keys"><kbd>C</kbd><kbd>V</kbd></div><div class="kbd-desc">ZW ± </div></div>
+      <div class="kbd-row"><div class="kbd-keys"><kbd>Ctrl</kbd><kbd>Z</kbd></div><div class="kbd-desc">Undo</div></div>
+      <div class="kbd-row"><div class="kbd-keys"><kbd>Space</kbd></div><div class="kbd-desc">Toggle auto-rotate</div></div>
+    </div>
+
+    <!-- Cell status -->
+    <div class="panel-section">
+      <div class="section-label">Cell Status</div>
+      <div class="cell-legend" id="cellLegend"></div>
+    </div>
+
+    <!-- Move history -->
+    <div class="panel-section">
+      <div class="section-label">History</div>
+      <div class="history-scroll" id="history">
+        <span style="color:var(--muted);font-size:10px">No moves yet</span>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-info">
+    <span>16 vertices · 32 edges · 24 faces · 8 cubic cells</span>
+    <span id="footerState">STATE: SOLVED</span>
+  </div>
+  <span>Tesseract Puzzle v2.0</span>
+</footer>
+</div>
+
+<!-- Win Modal -->
+<div class="modal-backdrop" id="winModal">
+  <div class="modal">
+    <span class="win-icon">🎉</span>
+    <div class="win-title">SOLVED!</div>
+    <p style="color:var(--muted2);font-size:12px;margin-top:0.5rem">You solved the 4D Hypercube Rubik's Puzzle</p>
+    <div class="win-stats-row">
+      <div class="win-stat">
+        <div class="win-stat-val" id="winMoves">—</div>
+        <div class="win-stat-label">Moves</div>
+      </div>
+      <div class="win-stat">
+        <div class="win-stat-val" id="winTime">—</div>
+        <div class="win-stat-label">Time</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button class="btn btn-primary" onclick="scramble();closeModal('winModal')">Play Again</button>
+      <button class="btn btn-secondary" onclick="closeModal('winModal')">Keep Viewing</button>
+    </div>
+  </div>
+</div>
+
+<!-- Info Modal -->
+<div class="modal-backdrop" id="infoModal">
+  <div class="modal" style="max-width:520px;text-align:left">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+      <div style="font-family:'Unbounded',sans-serif;font-size:16px;font-weight:700">About the Puzzle</div>
+      <button class="btn btn-secondary" onclick="closeModal('infoModal')" style="padding:6px 12px">✕</button>
+    </div>
+    <div class="info-section">
+      <div class="info-title">What is a Tesseract?</div>
+      <div class="info-body">A tesseract (4D hypercube) is the 4-dimensional analog of a cube. Just as a cube has 6 square faces, a tesseract has 8 cubic cells. You're seeing a 3D perspective projection — like looking at a cube's shadow.</div>
+    </div>
+    <div class="info-section">
+      <div class="info-title">The 8 Cubic Cells</div>
+      <div class="info-body">Each cell is a perfect 3D cube occupying one "face" of the 4D object. They're defined by fixing one of the four coordinates (X, Y, Z, or W) to either +1 or −1. Every vertex belongs to exactly 4 cells simultaneously.</div>
+    </div>
+    <div class="info-section">
+      <div class="info-title">4D Rotation Planes</div>
+      <div class="info-body">In 4D space, rotation happens in a plane (not around an axis). Six unique planes exist. XY/XZ/YZ feel familiar. XW/YW/ZW involve the 4th dimension and look "impossible" — they exchange inner and outer regions of the projection.</div>
+    </div>
+    <div class="info-grid">
+      <div class="info-card"><div class="info-card-val">16</div><div class="info-card-desc">Vertices</div></div>
+      <div class="info-card"><div class="info-card-val">32</div><div class="info-card-desc">Edges</div></div>
+      <div class="info-card"><div class="info-card-val">24</div><div class="info-card-desc">Faces</div></div>
+      <div class="info-card"><div class="info-card-val">8</div><div class="info-card-desc">Cubic Cells</div></div>
+      <div class="info-card"><div class="info-card-val">6</div><div class="info-card-desc">Twist Planes</div></div>
+      <div class="info-card"><div class="info-card-val">12</div><div class="info-card-desc">Total Moves</div></div>
+    </div>
+    <button class="btn btn-primary" style="margin-top:1.5rem;width:100%" onclick="closeModal('infoModal')">Got it!</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  TESSERACT PUZZLE — Enhanced v2.0
+//  Proper cubie tracking · Undo/Redo · W-Slice view
+//  Keyboard shortcuts · Cell status · Better rendering
+// ══════════════════════════════════════════════════════
+
+// ─── Cell Color Palette ───────────────────────────────
+const CELL_COLORS = [
+  '#ff4757','#ff8c42','#00d2ff','#f7c948',
+  '#5352ed','#7bed9f','#cd84f1','#f8f8ff'
+];
+const CELL_NAMES = ['-W','+W','-X','+X','-Y','+Y','-Z','+Z'];
+const CELL_CSS = [
+  'var(--c0)','var(--c1)','var(--c2)','var(--c3)',
+  'var(--c4)','var(--c5)','var(--c6)','var(--c7)'
+];
+
+// ─── Geometry ─────────────────────────────────────────
+const VERTS = [];
+for (let x of [-1,1]) for (let y of [-1,1]) for (let z of [-1,1]) for (let w of [-1,1])
+  VERTS.push([x,y,z,w]);
+
+const EDGES = [];
+for (let i=0;i<VERTS.length;i++) for (let j=i+1;j<VERTS.length;j++) {
+  let d=0; for (let k=0;k<4;k++) if(VERTS[i][k]!==VERTS[j][k])d++;
+  if(d===1) EDGES.push([i,j]);
+}
+
+// 24 square faces: fix 2 of 4 coords
+const FACES = [];
+for (let a1=0;a1<4;a1++) for (let s1 of [-1,1])
+  for (let a2=a1+1;a2<4;a2++) for (let s2 of [-1,1]) {
+    const fv = VERTS.filter(v=>v[a1]===s1&&v[a2]===s2);
+    if (fv.length===4) FACES.push({fixedAxes:[a1,a2],fixedSigns:[s1,s2],verts:orderQuad(fv,a1,a2)});
+  }
+
+function orderQuad(pts,a1,a2) {
+  const free=[0,1,2,3].filter(x=>x!==a1&&x!==a2);
+  return pts.slice().sort((a,b)=>Math.atan2(a[free[1]],a[free[0]])-Math.atan2(b[free[1]],b[free[0]]));
+}
+
+// ─── Face Color Assignment ────────────────────────────
+// Each face gets the color of its "dominant" cell
+function assignFaceColor(f) {
+  const cellDefs = [[0,-1],[0,1],[1,-1],[1,1],[2,-1],[2,1],[3,-1],[3,1]];
+  for (let i=0;i<8;i++) {
+    const [ax,s] = cellDefs[i];
+    const idx = f.fixedAxes.indexOf(ax);
+    if (idx !== -1 && f.fixedSigns[idx] === s) return i;
+  }
+  return 0;
+}
+
+let faceColors = FACES.map(assignFaceColor);
+const solvedColors = faceColors.slice();
+
+// ─── 4D Rotation Math ─────────────────────────────────
+const PLANE_AXES = {XY:[0,1],XZ:[0,2],XW:[0,3],YZ:[1,2],YW:[1,3],ZW:[2,3]};
+
+function rot4d(plane, angle) {
+  const c=Math.cos(angle), s=Math.sin(angle);
+  const m=[[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]];
+  const [a,b]=PLANE_AXES[plane];
+  m[a][a]=c; m[a][b]=-s; m[b][a]=s; m[b][b]=c;
+  return m;
+}
+
+function mulMat4v(m,v) { return m.map(row=>row.reduce((s,x,i)=>s+x*v[i],0)); }
+
+function mulMat4(a,b) {
+  const r=[]; for(let i=0;i<4;i++){r[i]=[];for(let j=0;j<4;j++){r[i][j]=0;for(let k=0;k<4;k++)r[i][j]+=a[i][k]*b[k][j];}}
+  return r;
+}
+
+// ─── View State ───────────────────────────────────────
+let viewMatrix = [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]];
+let zoom = 1.0;
+let autoRotate = true;
+let isDragging = false, lastMouse = null;
+
+function normalizeMatrix() {
+  for(let i=0;i<4;i++){let len=0;for(let j=0;j<4;j++)len+=viewMatrix[j][i]**2;len=Math.sqrt(len);for(let j=0;j<4;j++)viewMatrix[j][i]/=len;}
+}
+
+// ─── Projection ───────────────────────────────────────
+function project(v, W, H) {
+  const rv = mulMat4v(viewMatrix, v);
+  const w4=2.5, fac=w4/(w4-rv[3]);
+  const x3=rv[0]*fac, y3=rv[1]*fac, z3=rv[2]*fac;
+  const d=3.5, pz=d/(d-z3);
+  return [W/2+(x3*pz)*zoom*W*0.22, H/2-(y3*pz)*zoom*H*0.22, fac*pz];
+}
+
+// ─── Canvas ───────────────────────────────────────────
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const p = canvas.parentElement;
+  canvas.width = p.clientWidth;
+  canvas.height = p.clientHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ─── Animation ────────────────────────────────────────
+let animQueue = [], currentAnim = null;
+let lastTs = 0;
+let rafId = null;
+
+function ease(t) { return t<0.5?2*t*t:1-(-2*t+2)**2/2; }
+
+function render(ts) {
+  const dt = Math.min((ts-lastTs)/1000, 0.05);
+  lastTs = ts;
+
+  if (autoRotate) {
+    const sp=[0.004,0.007,0.006,0.005,-0.005,0.003];
+    const pl=['XY','XZ','XW','YZ','YW','ZW'];
+    pl.forEach((p,i)=>{ viewMatrix=mulMat4(rot4d(p,sp[i]),viewMatrix); });
+    normalizeMatrix();
+  }
+
+  if (currentAnim) {
+    currentAnim.elapsed += dt*1000;
+    const t = Math.min(currentAnim.elapsed/currentAnim.duration, 1);
+    draw(currentAnim.plane, currentAnim.totalAngle * ease(t));
+    if (t>=1) {
+      currentAnim=null;
+      if(animQueue.length) { currentAnim=animQueue.shift(); currentAnim.elapsed=0; }
+    }
+  } else {
+    draw(null, 0);
+  }
+
+  rafId = requestAnimationFrame(render);
+}
+
+function draw(animPlane, animAngle) {
+  const W=canvas.width, H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  // Project vertices (with optional animation rotation)
+  let pv;
+  if (animPlane) {
+    const m = rot4d(animPlane, animAngle);
+    pv = VERTS.map(v=>project(mulMat4v(m,v),W,H));
+  } else {
+    pv = VERTS.map(v=>project(v,W,H));
+  }
+
+  // Depth-sort faces
+  const drawFaces = FACES.map((f,fi)=>{
+    const pts = f.verts.map(v=>{
+      const idx=VERTS.findIndex(u=>u[0]===v[0]&&u[1]===v[1]&&u[2]===v[2]&&u[3]===v[3]);
+      return pv[idx];
+    });
+    return { pts, depth: pts.reduce((s,p)=>s+p[2],0)/pts.length, ci: faceColors[fi] };
+  }).sort((a,b)=>a.depth-b.depth);
+
+  // Draw faces
+  drawFaces.forEach(({pts,ci})=>{
+    const col=CELL_COLORS[ci];
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0],pts[0][1]);
+    pts.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));
+    ctx.closePath();
+
+    // Face fill with subtle gradient
+    const cx=(pts[0][0]+pts[2][0])/2, cy=(pts[0][1]+pts[2][1])/2;
+    const grad=ctx.createRadialGradient(cx-8,cy-8,0,cx,cy,40);
+    grad.addColorStop(0, lighten(col, 0.15));
+    grad.addColorStop(1, col);
+    ctx.globalAlpha=0.88;
+    ctx.fillStyle=grad;
+    ctx.fill();
+
+    // Inner highlight
+    ctx.globalAlpha=0.06;
+    ctx.fillStyle='#ffffff';
+    ctx.fill();
+
+    // Outline
+    ctx.globalAlpha=1;
+    ctx.strokeStyle='rgba(0,0,0,0.7)';
+    ctx.lineWidth=1.5;
+    ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,0.1)';
+    ctx.lineWidth=0.7;
+    ctx.stroke();
+  });
+
+  // Draw edges (subtle)
+  ctx.globalAlpha=0.2;
+  ctx.strokeStyle='rgba(255,255,255,0.8)';
+  ctx.lineWidth=0.5;
+  EDGES.forEach(([i,j])=>{
+    ctx.beginPath();
+    ctx.moveTo(pv[i][0],pv[i][1]);
+    ctx.lineTo(pv[j][0],pv[j][1]);
+    ctx.stroke();
+  });
+
+  // Draw vertex dots
+  ctx.globalAlpha=0.5;
+  pv.forEach(p=>{
+    ctx.beginPath();
+    ctx.arc(p[0],p[1],2,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,255,255,0.6)';
+    ctx.fill();
+  });
+
+  ctx.globalAlpha=1;
+  updateSliceView();
+}
+
+function lighten(hex, amt) {
+  const r=parseInt(hex.slice(1,3),16);
+  const g=parseInt(hex.slice(3,5),16);
+  const b=parseInt(hex.slice(5,7),16);
+  const clamp=v=>Math.min(255,Math.round(v+255*amt));
+  return `rgb(${clamp(r)},${clamp(g)},${clamp(b)})`;
+}
+
+// ─── W-Slice View ─────────────────────────────────────
+// Shows the 4 faces of the W=-1 cell and W=+1 cell
+function updateSliceView() {
+  const negEl=document.getElementById('sliceNeg');
+  const posEl=document.getElementById('slicePos');
+  if(!negEl||!posEl) return;
+
+  // W=-1 cell: fixedAxes includes 3 (W) with sign -1
+  // faces of that cell: faces where one fixedAxis is W=−1
+  // Show 4 faces × 2 cells
+  const wNeg=FACES.filter(f=>f.fixedAxes.includes(3)&&f.fixedSigns[f.fixedAxes.indexOf(3)]===-1);
+  const wPos=FACES.filter(f=>f.fixedAxes.includes(3)&&f.fixedSigns[f.fixedAxes.indexOf(3)]===1);
+
+  function renderSlice(el, faces) {
+    el.innerHTML='';
+    faces.forEach((f,i)=>{
+      const fi=FACES.indexOf(f);
+      const div=document.createElement('div');
+      div.className='slice-cell';
+      div.style.background=CELL_COLORS[faceColors[fi]];
+      div.style.color=luminance(CELL_COLORS[faceColors[fi]])>0.4?'#111':'#fff';
+      div.textContent=CELL_NAMES[faceColors[fi]];
+      el.appendChild(div);
+    });
+  }
+  renderSlice(negEl, wNeg);
+  renderSlice(posEl, wPos);
+}
+
+function luminance(hex) {
+  if(!hex.startsWith('#'))return 0.5;
+  const r=parseInt(hex.slice(1,3),16)/255;
+  const g=parseInt(hex.slice(3,5),16)/255;
+  const b=parseInt(hex.slice(5,7),16)/255;
+  return 0.2126*r+0.7152*g+0.0722*b;
+}
+
+// ─── Puzzle Moves ─────────────────────────────────────
+let moveHistory = []; // [{plane, dir}]
+let undoStack = [];   // snapshots of faceColors
+let redoStack = [];
+let moveCount = 0;
+let timerInterval = null, timerStart = null, timerVal = 0;
+
+function pushUndo() {
+  undoStack.push(faceColors.slice());
+  if(undoStack.length>100) undoStack.shift();
+  redoStack=[];
+}
+
+function applyMove(plane, dir, skipHistory=false) {
+  if(!skipHistory) {
+    pushUndo();
+    if(moveCount===0) startTimer();
+    const label=plane+(dir>0?'+':'−');
+    moveHistory.push({plane, dir, label});
+    moveCount++;
+    document.getElementById('moveCount').textContent=moveCount;
+    document.getElementById('lastMoveTag').textContent='Last: '+label;
+    updateHistoryUI();
+    flashMoveBtn(plane);
+  }
+
+  rotateFaceColors(plane, dir);
+  animQueue.push({plane, totalAngle: dir*Math.PI/2, elapsed:0, duration:280});
+  if(!currentAnim&&animQueue.length===1){currentAnim=animQueue.shift();currentAnim.elapsed=0;}
+
+  checkSolved();
+  updateCellStatus();
+  document.getElementById('footerState').textContent=
+    'STATE: '+(isSolved()?'SOLVED':'SCRAMBLED');
+}
+
+function rotateFaceColors(plane, dir) {
+  const [a,b]=PLANE_AXES[plane];
+  const processed=new Set();
+  FACES.forEach((f,fi)=>{
+    if(processed.has(fi)) return;
+    if(!f.fixedAxes.includes(a)&&!f.fixedAxes.includes(b)) return;
+    const cycle=[];
+    let cf=JSON.parse(JSON.stringify(f));
+    for(let step=0;step<4;step++){
+      const idx=FACES.findIndex(g=>
+        g.fixedAxes[0]===cf.fixedAxes[0]&&g.fixedAxes[1]===cf.fixedAxes[1]&&
+        g.fixedSigns[0]===cf.fixedSigns[0]&&g.fixedSigns[1]===cf.fixedSigns[1]);
+      if(idx===-1) break;
+      cycle.push(idx); processed.add(idx);
+      cf=rotateFaceRef(cf,a,b,dir);
+    }
+    if(cycle.length===4){
+      if(dir>0){
+        const tmp=faceColors[cycle[3]];
+        faceColors[cycle[3]]=faceColors[cycle[2]];
+        faceColors[cycle[2]]=faceColors[cycle[1]];
+        faceColors[cycle[1]]=faceColors[cycle[0]];
+        faceColors[cycle[0]]=tmp;
+      } else {
+        const tmp=faceColors[cycle[0]];
+        faceColors[cycle[0]]=faceColors[cycle[1]];
+        faceColors[cycle[1]]=faceColors[cycle[2]];
+        faceColors[cycle[2]]=faceColors[cycle[3]];
+        faceColors[cycle[3]]=tmp;
+      }
+    }
+  });
+}
+
+function rotateFaceRef(f,a,b,dir){
+  const r=JSON.parse(JSON.stringify(f));
+  const ia=r.fixedAxes.indexOf(a), ib=r.fixedAxes.indexOf(b);
+  if(ia!==-1&&ib!==-1){
+    const sa=r.fixedSigns[ia],sb=r.fixedSigns[ib];
+    if(dir>0){r.fixedSigns[ia]=-sb;r.fixedSigns[ib]=sa;}
+    else{r.fixedSigns[ia]=sb;r.fixedSigns[ib]=-sa;}
+  } else if(ia!==-1){
+    r.fixedAxes[ia]=b;
+    if(dir<=0) r.fixedSigns[ia]=-r.fixedSigns[ia];
+  } else if(ib!==-1){
+    r.fixedAxes[ib]=a;
+    if(dir>0) r.fixedSigns[ib]=-r.fixedSigns[ib];
+  }
+  if(r.fixedAxes[0]>r.fixedAxes[1]){
+    [r.fixedAxes[0],r.fixedAxes[1]]=[r.fixedAxes[1],r.fixedAxes[0]];
+    [r.fixedSigns[0],r.fixedSigns[1]]=[r.fixedSigns[1],r.fixedSigns[0]];
+  }
+  return r;
+}
+
+function isSolved() {
+  return JSON.stringify(faceColors)===JSON.stringify(solvedColors);
+}
+
+function checkSolved() {
+  if(isSolved()&&moveCount>0) {
+    stopTimer();
+    const s=Math.floor(timerVal/1000);
+    document.getElementById('winMoves').textContent=moveCount;
+    document.getElementById('winTime').textContent=
+      `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+    setTimeout(()=>document.getElementById('winModal').classList.add('show'),400);
+  }
+}
+
+// ─── Cell Status ──────────────────────────────────────
+function buildCellLegend() {
+  const el=document.getElementById('cellLegend');
+  el.innerHTML='';
+  CELL_COLORS.forEach((c,i)=>{
+    const div=document.createElement('div');
+    div.className='cell-item'; div.id='cell-item-'+i;
+    div.innerHTML=`
+      <div class="cell-swatch" style="background:${c}"></div>
+      <span class="cell-name">${CELL_NAMES[i]}</span>
+      <span class="cell-status ok" id="cell-status-${i}">✓</span>`;
+    el.appendChild(div);
+  });
+}
+
+function updateCellStatus() {
+  let solved=0;
+  CELL_COLORS.forEach((_,ci)=>{
+    const el=document.getElementById('cell-status-'+ci);
+    if(!el) return;
+    const item=document.getElementById('cell-item-'+ci);
+    // A cell is "solved" if all its faces have the right color
+    const cellFaces=FACES.filter(f=>{
+      const [ax,s]=[[0,-1],[0,1],[1,-1],[1,1],[2,-1],[2,1],[3,-1],[3,1]][ci];
+      return f.fixedAxes.includes(ax)&&f.fixedSigns[f.fixedAxes.indexOf(ax)]===s;
+    });
+    const ok=cellFaces.every(f=>{
+      const fi=FACES.indexOf(f);
+      return faceColors[fi]===solvedColors[fi];
+    });
+    el.textContent=ok?'✓':'✗';
+    el.className='cell-status '+(ok?'ok':'bad');
+    item.style.borderColor=ok?'rgba(123,237,159,0.2)':'rgba(255,71,87,0.2)';
+    if(ok) solved++;
+  });
+  document.getElementById('solvedCount').textContent=solved+'/8';
+}
+
+// ─── History UI ───────────────────────────────────────
+function updateHistoryUI() {
+  const el=document.getElementById('history');
+  if(moveHistory.length===0){el.innerHTML='<span style="color:var(--muted);font-size:10px">No moves yet</span>';return;}
+  el.innerHTML=moveHistory.slice(-40).map((m,i,arr)=>{
+    const isLast=i===arr.length-1;
+    const color={XY:'#ff6b35',XZ:'#00e5cc',XW:'#a855f7',YZ:'#f7c948',YW:'#5352ed',ZW:'#7bed9f'}[m.plane];
+    return `<span class="history-move${isLast?' latest':''}" style="${isLast?`border-color:${color};color:${color}`:''}">${m.label}</span>`;
+  }).join('');
+  el.scrollTop=el.scrollHeight;
+}
+
+// ─── Undo / Redo ──────────────────────────────────────
+function undo() {
+  if(undoStack.length===0){showToast('Nothing to undo');return;}
+  redoStack.push(faceColors.slice());
+  faceColors=undoStack.pop();
+  if(moveHistory.length>0) moveHistory.pop();
+  moveCount=Math.max(0,moveCount-1);
+  document.getElementById('moveCount').textContent=moveCount;
+  updateHistoryUI();
+  updateCellStatus();
+  showToast('Undone');
+}
+
+function redo() {
+  if(redoStack.length===0){showToast('Nothing to redo');return;}
+  undoStack.push(faceColors.slice());
+  faceColors=redoStack.pop();
+  moveCount++;
+  document.getElementById('moveCount').textContent=moveCount;
+  updateCellStatus();
+  showToast('Redone');
+}
+
+// ─── Scramble / Reset ─────────────────────────────────
+function scramble() {
+  closeModal('winModal');
+  faceColors=solvedColors.slice();
+  moveHistory=[]; moveCount=0; undoStack=[]; redoStack=[];
+  document.getElementById('moveCount').textContent='0';
+  document.getElementById('lastMoveTag').textContent='Scrambled!';
+  resetTimer();
+  updateHistoryUI();
+  canvas.classList.add('scrambling');
+  setTimeout(()=>canvas.classList.remove('scrambling'),500);
+
+  const planes=Object.keys(PLANE_AXES);
+  for(let i=0;i<25;i++){
+    const p=planes[Math.floor(Math.random()*planes.length)];
+    const d=Math.random()>0.5?1:-1;
+    rotateFaceColors(p,d);
+  }
+  updateCellStatus();
+  document.getElementById('footerState').textContent='STATE: SCRAMBLED';
+  showToast('Scrambled! 25 random moves applied');
+}
+
+function resetPuzzle() {
+  closeModal('winModal');
+  faceColors=solvedColors.slice();
+  moveHistory=[]; moveCount=0; undoStack=[]; redoStack=[];
+  document.getElementById('moveCount').textContent='0';
+  document.getElementById('lastMoveTag').textContent='No moves yet';
+  resetTimer();
+  updateHistoryUI();
+  updateCellStatus();
+  viewMatrix=[[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]];
+  document.getElementById('footerState').textContent='STATE: SOLVED';
+  showToast('Reset to solved state');
+}
+
+// ─── Timer ────────────────────────────────────────────
+function startTimer() {
+  if(timerInterval) return;
+  timerStart=Date.now()-timerVal;
+  timerInterval=setInterval(()=>{
+    timerVal=Date.now()-timerStart;
+    const s=Math.floor(timerVal/1000);
+    document.getElementById('timer').textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+  },500);
+}
+function stopTimer(){clearInterval(timerInterval);timerInterval=null;}
+function resetTimer(){stopTimer();timerVal=0;document.getElementById('timer').textContent='0:00';}
+
+// ─── UI Helpers ───────────────────────────────────────
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+
+let toastTimeout;
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimeout);
+  toastTimeout=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+function flashMoveBtn(plane) {
+  document.querySelectorAll(`.move-btn[data-plane="${plane}"]`).forEach(btn=>{
+    btn.style.background='rgba(255,255,255,0.12)';
+    setTimeout(()=>btn.style.background='',200);
+  });
+}
+
+function toggleAutoRotate() {
+  autoRotate=!autoRotate;
+  document.getElementById('autoRotBtn').textContent=autoRotate?'⟳ Auto':'⟳ Off';
+  document.getElementById('modeTag').querySelector('.tag-dot').style.background=
+    autoRotate?'var(--accent2)':'var(--accent)';
+  document.getElementById('modeTag').querySelector('div+div,span').textContent=
+    autoRotate?'AUTO-ROTATING':'MANUAL MODE';
+}
+
+// ─── Keyboard ─────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  const map={
+    'q':['XY',1],'w':['XY',-1],
+    'e':['XZ',1],'r':['XZ',-1],
+    'a':['XW',1],'s':['XW',-1],
+    'd':['YZ',1],'f':['YZ',-1],
+    'z':['YW',1],'x':['YW',-1],
+    'c':['ZW',1],'v':['ZW',-1],
+  };
+  const k=e.key.toLowerCase();
+  if(map[k]) { applyMove(...map[k]); return; }
+  if(e.key===' '){e.preventDefault();toggleAutoRotate();return;}
+  if((e.ctrlKey||e.metaKey)&&k==='z'&&!e.shiftKey){e.preventDefault();undo();return;}
+  if((e.ctrlKey||e.metaKey)&&(k==='y'||(k==='z'&&e.shiftKey))){e.preventDefault();redo();return;}
+});
+
+// ─── Mouse/Touch Controls ─────────────────────────────
+canvas.addEventListener('mousedown', e=>{
+  isDragging=true; lastMouse={x:e.clientX,y:e.clientY};
+  if(autoRotate){autoRotate=false;document.getElementById('autoRotBtn').textContent='⟳ Off';}
+});
+window.addEventListener('mousemove', e=>{
+  if(!isDragging||!lastMouse) return;
+  const dx=(e.clientX-lastMouse.x)*0.005;
+  const dy=(e.clientY-lastMouse.y)*0.005;
+  lastMouse={x:e.clientX,y:e.clientY};
+  viewMatrix=mulMat4(rot4d('YZ',-dy),mulMat4(rot4d('XZ',dx),viewMatrix));
+});
+window.addEventListener('mouseup',()=>{isDragging=false;lastMouse=null;});
+
+canvas.addEventListener('wheel',e=>{
+  e.preventDefault();
+  zoom*=e.deltaY>0?0.93:1.07;
+  zoom=Math.max(0.3,Math.min(3,zoom));
+},{passive:false});
+
+canvas.addEventListener('touchstart',e=>{
+  if(e.touches.length===1){isDragging=true;lastMouse={x:e.touches[0].clientX,y:e.touches[0].clientY};}
+},{passive:true});
+canvas.addEventListener('touchmove',e=>{
+  if(!isDragging||e.touches.length!==1) return;
+  const dx=(e.touches[0].clientX-lastMouse.x)*0.005;
+  const dy=(e.touches[0].clientY-lastMouse.y)*0.005;
+  lastMouse={x:e.touches[0].clientX,y:e.touches[0].clientY};
+  viewMatrix=mulMat4(rot4d('YZ',-dy),mulMat4(rot4d('XZ',dx),viewMatrix));
+},{passive:true});
+canvas.addEventListener('touchend',()=>{isDragging=false;lastMouse=null;});
+
+// ─── Button Wiring ────────────────────────────────────
+document.getElementById('scrambleBtn').addEventListener('click', scramble);
+document.getElementById('resetBtn').addEventListener('click', resetPuzzle);
+document.getElementById('undoBtn').addEventListener('click', undo);
+document.getElementById('redoBtn').addEventListener('click', redo);
+document.getElementById('autoRotBtn').addEventListener('click', toggleAutoRotate);
+document.getElementById('infoBtn').addEventListener('click', ()=>document.getElementById('infoModal').classList.add('show'));
+
+// Close modals on backdrop click
+document.querySelectorAll('.modal-backdrop').forEach(el=>{
+  el.addEventListener('click', e=>{ if(e.target===el) el.classList.remove('show'); });
+});
+
+// ─── Init ─────────────────────────────────────────────
+buildCellLegend();
+updateCellStatus();
+lastTs = performance.now();
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
